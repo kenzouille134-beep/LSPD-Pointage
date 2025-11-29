@@ -272,18 +272,33 @@
             <p>Système de Pointage</p>
         </div>
 
-        <!-- Login Section (Visible when not admin) -->
-        <div id="loginSection" class="grid-2">
+        <!-- Public Section (Visible to everyone) -->
+        <div id="publicSection" class="grid-2">
             <div class="card">
-                <h2>🔐 Accès Administrateur</h2>
-                <input type="password" id="passwordInput" placeholder="Mot de passe administrateur">
-                <button class="btn-primary" onclick="checkAdmin()">Se Connecter</button>
+                <h2>📋 Liste des Employés</h2>
+                <div id="publicEmployeeList" style="max-height: 400px; overflow-y: auto;">
+                </div>
             </div>
 
             <div class="card">
-                <h2>📋 Liste des Employés</h2>
-                <div id="publicEmployeeList" style="max-height: 300px; overflow-y: auto;">
+                <h2>📊 Pointages Récents</h2>
+                <div id="publicTimecardList" style="max-height: 400px; overflow-y: auto;">
                 </div>
+            </div>
+        </div>
+
+        <!-- Admin Login (Hidden button at bottom) -->
+        <div style="text-align: center; margin-top: 2rem;">
+            <button class="btn-primary btn-small" onclick="showAdminLogin()" style="width: auto;">🔐 Admin</button>
+        </div>
+
+        <!-- Login Section (Visible when not admin) -->
+        <div id="loginSection" class="hidden">
+            <div class="card" style="max-width: 400px; margin: 2rem auto;">
+                <h2>🔐 Accès Administrateur</h2>
+                <input type="password" id="passwordInput" placeholder="Mot de passe administrateur">
+                <button class="btn-primary" onclick="checkAdmin()">Se Connecter</button>
+                <button class="btn-primary" onclick="hideAdminLogin()" style="background: #666; margin-top: 0.5rem;">Annuler</button>
             </div>
         </div>
 
@@ -389,6 +404,7 @@
             if (input.value === ADMIN_PASSWORD) {
                 isAdmin = true;
                 input.value = '';
+                document.getElementById('loginSection').classList.add('hidden');
                 render();
             } else {
                 alert('Mot de passe incorrect');
@@ -475,25 +491,62 @@
             return active ? 'En service' : 'Hors service';
         }
 
+        // Show admin login
+        function showAdminLogin() {
+            document.getElementById('loginSection').classList.remove('hidden');
+            document.getElementById('publicSection').classList.add('hidden');
+        }
+
+        // Hide admin login
+        function hideAdminLogin() {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('publicSection').classList.remove('hidden');
+        }
+
         // Render function
         function render() {
             // Show/hide sections
-            document.getElementById('loginSection').classList.toggle('hidden', isAdmin);
             document.getElementById('adminSection').classList.toggle('hidden', !isAdmin);
 
-            // Render public employee list
+            // Render public employee list (always visible)
             const publicList = document.getElementById('publicEmployeeList');
             if (employees.length === 0) {
                 publicList.innerHTML = '<p class="empty-message">Aucun employé enregistré</p>';
             } else {
-                publicList.innerHTML = employees.map(emp => `
-                    <div class="employee-item">
-                        <div class="employee-info">
-                            <p class="employee-name">${emp.name}</p>
-                            <p class="employee-badge">Badge: ${emp.badge} | Grade: ${emp.grade}</p>
+                publicList.innerHTML = employees.map(emp => {
+                    const status = getEmployeeStatus(emp.id);
+                    return `
+                        <div class="employee-item">
+                            <div class="employee-info">
+                                <p class="employee-name">${emp.name}</p>
+                                <p class="employee-badge">Badge: ${emp.badge} | Grade: ${emp.grade}</p>
+                                <p class="${status === 'En service' ? 'status-working' : 'status-off'}">${status}</p>
+                            </div>
                         </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
+            }
+
+            // Render public timecard list (always visible)
+            const publicTimeList = document.getElementById('publicTimecardList');
+            if (timecards.length === 0) {
+                publicTimeList.innerHTML = '<p class="empty-message">Aucun pointage</p>';
+            } else {
+                publicTimeList.innerHTML = timecards.map(tc => {
+                    const emp = employees.find(e => e.id === tc.employeeId);
+                    const badgeClass = tc.status === 'En service' ? 'status-working-badge' : 'status-off-badge';
+                    return `
+                        <div class="employee-item">
+                            <div class="employee-info">
+                                <p class="employee-name">${tc.employeeName}</p>
+                                <p class="employee-badge">Badge: ${emp?.badge || 'N/A'} | Grade: ${emp?.grade || 'N/A'}</p>
+                                <p class="employee-badge">Arrivée: ${tc.clockIn}</p>
+                                ${tc.clockOut ? `<p class="employee-badge">Départ: ${tc.clockOut}</p>` : ''}
+                                <span class="status-badge ${badgeClass}" style="display: inline-block; margin-top: 0.5rem;">${tc.status}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
             }
 
             if (!isAdmin) return;
